@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/app
+    environment:
+      - MODULE_NAME=main
+      - VARIABLE_NAME=app
+      - MAX_WORKERS=1  # only because DB is mocked with dict in this example
