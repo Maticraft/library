@@ -3,13 +3,17 @@ from typing import List
 
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app import crud, models, schemas
 from app.database import SessionLocal, engine
 
 
 def init_db():
-    models.Base.metadata.create_all(bind=engine)
+    try:
+        models.Base.metadata.create_all(bind=engine)
+    except IntegrityError as e:
+        print(e)
 
 
 @asynccontextmanager
