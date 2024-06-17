@@ -1,32 +1,59 @@
-from fastapi import FastAPI, HTTPException
+from contextlib import asynccontextmanager
 from typing import List
 
-from app import schemas, database
+from fastapi import Depends, FastAPI, HTTPException
+from sqlalchemy.orm import Session
 
-app = FastAPI()
+from app import crud, models, schemas
+from app.database import SessionLocal, engine
+
+
+def init_db():
+    models.Base.metadata.create_all(bind=engine)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 
 @app.post("/books/", response_model=schemas.Book)
-def create_book(book: schemas.BookCreate):
-    if database.book_exists(book.serial_number):
+def create_book(book: schemas.BookCreate, db: Session = Depends(get_db)):
+    if crud.get_book(db, book.serial_number):
         raise HTTPException(status_code=400, detail="Book with this serial number already exists")
-    book = database.add_book(book)
+    book = crud.create_book(db, book)
     return book
 
+
 @app.delete("/books/{serial_number}", response_model=schemas.Book)
-def delete_book(serial_number: schemas.SerialNumber):
-    if not database.book_exists(serial_number):
+def delete_book(serial_number: schemas.SerialNumber, db: Session = Depends(get_db)):
+    if not crud.get_book(db, serial_number):
         raise HTTPException(status_code=404, detail="Book not found")
-    status = database.remove_book(serial_number)
-    return status
+    book = crud.delete_book(db, serial_number)
+    return book
+
 
 @app.get("/books/", response_model=List[schemas.Book])
-def get_books():
-    books = database.get_all_books()
+def get_books(db: Session = Depends(get_db)):
+    books = crud.get_books(db)
     return books
 
+
 @app.put("/books/{serial_number}", response_model=schemas.Book)
-def update_book_status(serial_number: schemas.SerialNumber, status_update: schemas.BookStatusUpdate):
-    if not database.book_exists(serial_number):
+def update_book_status(serial_number: schemas.SerialNumber, status_update: schemas.BookStatusUpdate, db: Session = Depends(get_db)):
+    if not crud.get_book(db, serial_number):
         raise HTTPException(status_code=404, detail="Book not found")
-    status =  database.update_book_status(serial_number, status_update)
-    return status
+    book =  crud.update_book_status(db, serial_number, status_update)
+    return book

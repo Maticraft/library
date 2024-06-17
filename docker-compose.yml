@@ -1,13 +1,32 @@
 version: "3.8"
 
 services:
+  db:
+    image: postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: library
+    ports:
+      - "5432:5432"
+    networks:
+      - private
   app:
-    build: .
+    build: ./
     ports:
       - "8000:80"
     volumes:
-      - .:/app
+      - ./:/app
     environment:
       - MODULE_NAME=main
       - VARIABLE_NAME=app
-      - MAX_WORKERS=1  # only because DB is mocked with dict in this example
+    depends_on:
+      - db
+    networks:
+      - private
+      - public
+
+networks:
+  public:
+  private:
+   internal: true
